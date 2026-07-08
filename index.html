@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>小组件预览</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            background: #0f0f1a;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px;
+            gap: 20px;
+            color: #fff;
+        }
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .controls {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .control-item label {
+            color: #999;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .control-item select,
+        .control-item input[type="url"] {
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #2a2a3e;
+            background: #1e1e30;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .control-item input[type="url"] {
+            width: 140px;
+        }
+        .control-item input[type="color"] {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: none;
+        }
+        .preview-area {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #2a2a3e;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .widget-frame {
+            overflow: hidden;
+        }
+        .size-info {
+            color: #555;
+            font-size: 11px;
+        }
+        .tabs {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            gap: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2a2a3e;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            background: #1e1e30;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .tab.active {
+            background: #6366f1;
+            color: #fff;
+        }
+        .editor-section {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .editor-section label {
+            color: #999;
+            font-size: 13px;
+        }
+        .editor-section textarea {
+            width: 100%;
+            height: 180px;
+            background: #1e1e30;
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+            border-radius: 14px;
+            padding: 14px;
+            font-family: 'Menlo', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            resize: vertical;
+            outline: none;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-primary {
+            background: #6366f1;
+            color: #fff;
+        }
+        .btn-secondary {
+            background: #2a2a3e;
+            color: #ccc;
+        }
+        .panel { display: none; }
+        .panel.active { display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 999;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <h1>🎡 小组件预览</h1>
+
+    <div class="controls">
+        <div class="control-item">
+            <label>尺寸</label>
+            <select id="sizeSelect">
+                <option value="2x2">2×2</option>
+                <option value="2x3">2×3</option>
+                <option value="4x4">4×4</option>
+                <option value="free">自适应</option>
+            </select>
+        </div>
+        <div class="control-item">
+            <label>背景</label>
+            <input type="color" id="bgColor" value="#f5f5f5">
+        </div>
+        <div class="control-item">
+            <input type="url" id="bgImage" placeholder="壁纸URL">
+        </div>
+    </div>
+
+    <div class="preview-area" id="previewArea">
+        <div class="widget-frame" id="widgetFrame"></div>
+    </div>
+    <div class="size-info" id="sizeInfo"></div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('json')">组件 JSON</button>
+        <button class="tab" onclick="switchTab('html')">纯 HTML/CSS</button>
+    </div>
+
+    <div class="editor-section">
+        <!-- JSON模式 -->
+        <div class="panel active" id="panelJson">
+            <label>粘贴组件 JSON</label>
+            <textarea id="jsonInput" placeholder='粘贴组件JSON到这里...'></textarea>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="renderJSON()">渲染预览</button>
+                <button class="btn btn-secondary" onclick="exportJSON()">导出 JSON</button>
+            </div>
+        </div>
+
+        <!-- HTML/CSS模式 -->
+        <div class="panel" id="panelHtml">
+            <label>HTML</label>
+            <textarea id="htmlInput" placeholder='<div class="my-widget">Hello</div>'></textarea>
+            <label>CSS</label>
+            <textarea id="cssInput" placeholder='.my-widget { color: red; }'></textarea>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="renderHTML()">渲染预览</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const SIZES = {
+            '2x2': { w: 176, h: 176 },
+            '2x3': { w: 264, h: 176 },
+            '4x4': { w: 352, h: 352 },
+            'free': null
+        };
+
+        const sizeSelect = document.getElementById('sizeSelect');
+        const bgColor = document.getElementById('bgColor');
+        const bgImage = document.getElementById('bgImage');
+        const previewArea = document.getElementById('previewArea');
+        const widgetFrame = document.getElementById('widgetFrame');
+        const sizeInfo = document.getElementById('sizeInfo');
+        const jsonInput = document.getElementById('jsonInput');
+        const htmlInput = document.getElementById('htmlInput');
+        const cssInput = document.getElementById('cssInput');
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                t.classList.toggle('active', (tab === 'json' && i === 0) || (tab === 'html' && i === 1));
+            });
+            document.getElementById('panelJson').classList.toggle('active', tab === 'json');
+            document.getElementById('panelHtml').classList.toggle('active', tab === 'html');
+        }
+
+        function updatePreviewSize() {
+            const sizeKey = sizeSelect.value;
+            const size = SIZES[sizeKey];
+
+            if (!size) {
+                previewArea.style.width = '100%';
+                previewArea.style.height = 'auto';
+                previewArea.style.minHeight = '200px';
+                widgetFrame.style.width = '100%';
+                widgetFrame.style.height = 'auto';
+                sizeInfo.textContent = '自适应模式';
+                return;
+            }
+
+            const maxWidth = Math.min(window.innerWidth - 32, 500);
+            const scale = Math.min(maxWidth / size.w, maxWidth / size.h) * 0.8;
+            const w = Math.round(size.w * scale);
+            const h = Math.round(size.h * scale);
+            previewArea.style.width = '100%';
+            previewArea.style.maxWidth = (w + 40) + 'px';
+            previewArea.style.height = (h + 40) + 'px';
+            widgetFrame.style.width = w + 'px';
+            widgetFrame.style.height = h + 'px';
+            sizeInfo.textContent = `${sizeKey} · ${w}×${h}px`;
+        }
+
+        function updateBackground() {
+            const url = bgImage.value.trim();
+            if (url) {
+                previewArea.style.background = `url('${url}') center/cover`;
+            } else {
+                previewArea.style.background = bgColor.value;
+            }
+        }
+
+        function injectStyles(css) {
+            const oldStyle = document.getElementById('widget-style');
+            if (oldStyle) oldStyle.remove();
+            const style = document.createElement('style');
+            style.id = 'widget-style';
+            style.textContent = css;
+            document.head.appendChild(style);
+        }
+
+        function renderJSON() {
+            const raw = jsonInput.value.trim();
+            if (!raw) { showToast('请先粘贴JSON'); return; }
+
+            let config;
+            try {
+                config = JSON.parse(raw);
+            } catch (e) {
+                showToast('JSON格式错误: ' + e.message);
+                return;
+            }
+
+            if (config.size && SIZES[config.size]) {
+                sizeSelect.value = config.size;
+                updatePreviewSize();
+            }
+
+            const uid = config.id || 'widget-preview';
+            let html = config.html || '';
+            let css = config.css || '';
+            const vars = config.defaultVars || {};
+
+            html = html.replace(/\{\{id\}\}/g, uid);
+            css = css.replace(/\{\{id\}\}/g, uid);
+
+            for (const [key, val] of Object.entries(vars)) {
+                const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                html = html.replace(regex, val);
+                css = css.replace(regex, val);
+            }
+
+            injectStyles(css);
+            widgetFrame.innerHTML = html;
+            showToast('渲染成功 ✓');
+        }
+
+        function renderHTML() {
+            const html = htmlInput.value.trim();
+            const css = cssInput.value.trim();
+
+            if (!html) { showToast('请输入HTML'); return; }
+
+            injectStyles(css);
+            widgetFrame.innerHTML = html;
+            showToast('渲染成功 ✓');
+        }
+
+        function exportJSON() {
+            const raw = jsonInput.value.trim();
+            if (!raw) { showToast('没有可导出的内容'); return; }
+
+            try {
+                const config = JSON.parse(raw);
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = (config.name || 'widget') + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('已导出 ' + a.download);
+            } catch (e) {
+                showToast('JSON格式错误，无法导出');
+            }
+        }
+
+        sizeSelect.addEventListener('change', updatePreviewSize);
+        bgColor.addEventListener('input', updateBackground);
+        bgImage.addEventListener('input', updateBackground);
+
+        updatePreviewSize();
+        updateBackground();
+    </script>
+</body>
+</html>
